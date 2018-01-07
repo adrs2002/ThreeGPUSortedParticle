@@ -3,7 +3,7 @@
 # ThreeGPUSortedParticle
 Particle with Sort by Use GPU for Three.js
 
-# Overview これは何？
+# Overview
 
 It is an add-on class for easily displaying particles with alpha in Three.js.  
 By adding a minimum of 6 lines to the source, you can display particles using the GPU.  
@@ -17,7 +17,7 @@ The aim of this sample is to use GPU-based processing (GPGPU) to solve the rearr
 ## Demo
 
 * [demo](http://adrs2002.sakura.ne.jp/sandbox/particle2/sample/particleTest.html)
-* [demo2](http://adrs2002.sakura.ne.jp/sandbox/particle2/sample/particleEasyTest.html)  (easy版による雲の表現)
+* [demo2](http://adrs2002.sakura.ne.jp/sandbox/particle2/sample/particleEasyTest.html)  (cloud view by use easy ver)
 
 
 ## Requirement
