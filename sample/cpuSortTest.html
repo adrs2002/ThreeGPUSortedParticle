@@ -1,0 +1,134 @@
+<html>
+
+<body>
+
+    <!--
+        this is Sorting Test JS , use CPU version.
+        
+        run begin(); in browser console.
+    -->
+
+
+    <script src="../lib/three.min.js"></script>
+    <script>
+
+        function texture2D(_texture, _uv){
+            if(_uv.y > 1.0 || _uv.x > 1.0){
+                console.log("out of bounds!");
+            }
+            return _texture[Math.floor(_uv.y % 1 * _texture.length)][Math.floor(_uv.x % 1 * _texture[0].length)];
+        }
+
+        function mod(_a, _b ){
+            return  _a % _b;
+        }
+
+        function cpuSortTest(_drawSizes, uniform, texturePositionN) {
+            // 現在の位置情報を決定する
+
+            const halfDelta = {
+                x: 0.5,
+                y: 0.5
+            };
+
+            const resolution = {
+                x :  _drawSizes.width,
+                y :  _drawSizes.height
+            }
+
+            const stepno = uniform.stepno.value;
+            const offset = uniform.offset.value;
+            const stage = uniform.stage.value;
+
+            const FlagColorArray = [];
+            const gl_FragCoord = {x:0, y:0};
+            for (let y = 0; y < _drawSizes.height; y++) {
+                FlagColorArray[y] = [];
+                for (let x = 0; x < _drawSizes.width; x++) {
+                    gl_FragCoord.x = x;
+                    gl_FragCoord.y = y;
+
+
+                    const uv = { x: x > 0 ? x / resolution.x : 0, y: y > 0 ? y / resolution.y : 0 };
+
+                    const elem2d = {x : Math.floor(gl_FragCoord.x), y : Math.floor(gl_FragCoord.y) };
+
+                    const elem1d = elem2d.y * resolution.x + elem2d.x;
+
+                    const csign = mod(elem1d, stage) < offset ? 1.0 : -1.0;
+
+                    const cdir = mod(Math.floor(elem1d / stepno), 2) <= 0.5 ? 1.0 : -1.0;
+
+                    const val0 = texture2D(texturePositionN, {x : elem2d.x / resolution.x, y : elem2d.y / resolution.y});
+
+                    const adr1d = csign * offset + elem1d;
+                    const adr2d = {x: mod(adr1d, resolution.x), y : Math.floor(adr1d / resolution.x)};
+
+                    const val1 = texture2D(texturePositionN, {x : adr2d.x / resolution.x, y : adr2d.y / resolution.y });
+
+                    const cmin = (val0.w < val1.w) ? val0 : val1;
+                    const cmax = (val0.w < val1.w) ? val1 : val0;
+
+                    const dst = (csign == cdir) ? cmin : cmax;
+
+                    FlagColorArray[y][x] = dst;
+                }
+            }
+            return FlagColorArray;
+        }
+
+    function makeData(_WIDTH) {
+        const refObj = [_WIDTH];
+        for (let y = 0; y < _WIDTH; y++) {
+            refObj[y] = [];
+            for (let x = 0; x < _WIDTH; x++) {
+                refObj[y][x] = { w:Math.random() * 1000 ^ 0 };
+            }
+        }
+
+        return refObj;
+    }
+
+    function begin() {
+        const WIDTH = 256;
+        const drawData = { width: WIDTH, height: WIDTH };
+        let sortedData = makeData(WIDTH);
+
+        const harfDelta = {x:0.5,y:0.5};
+        const pow = Math.log2(WIDTH * WIDTH);
+        for(let i =0; i < WIDTH * WIDTH; i++)
+        {            
+            var positionNUniforms = {};
+
+            let step = i;
+            let rank;
+            for(rank = 0; rank<step ; rank++){
+                step -= rank+1;
+            }
+            if(pow <= rank) {break;}
+            let stepno = 1<<(rank+1);
+            let offset = 1<<(rank-step);
+            let stage  = 2*offset;
+
+            positionNUniforms.halfDelta = { value: harfDelta };
+            positionNUniforms.stepno = { value: stepno };
+            positionNUniforms.offset = { value: offset };
+            positionNUniforms.stage = { value: stage };
+
+            console.log(`i : ${i} , stepno= ${stepno} ; offset= ${offset} ; stage = ${stage}; `);
+
+            sortedData = cpuSortTest(drawData, positionNUniforms, sortedData);
+
+        }
+
+        console.log('complete');
+    }
+
+
+    // begin();
+
+
+    </script>
+</body>
+
+</html>
