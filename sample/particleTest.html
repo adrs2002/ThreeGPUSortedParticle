@@ -109,7 +109,7 @@
 
             //////////////////////////////////////////////////
             //追加点その３。new宣言をして、sceneにaddする。
-            jenP = new ThreeGpuSortedParticle(renderer, 128);
+            jenP = new ThreeGpuSortedParticle(renderer, 32);
             scene.add(jenP);
             //////////////////////////////////////////
 
@@ -136,17 +136,19 @@
             const baseVect = new THREE.Vector3(0,2.0,0);
             const baseExplose = 0.15;
 
-            jenP.appearsParticles(count, { basePos: new THREE.Vector3(0, 0.0, 0), scale: sizef, vect: baseVect, explose: baseExplose, colId: 1, speed: speed });
-           
-            jenP.appearsParticles(count, { basePos: new THREE.Vector3(posf, 0, -posf), scale: sizef, vect: baseVect, explose: baseExplose, colId: 1, speed: speed });
-            jenP.appearsParticles(count, { basePos: new THREE.Vector3(-posf, 0, posf), scale: sizef, vect: baseVect, explose: baseExplose, colId: 1, speed: speed });
+            if(Math.random() > 0.95){
+                jenP.appearsParticles(count, { basePos: new THREE.Vector3(0, 0.0, 0), scale: sizef, vect: baseVect, explose: baseExplose, colId: 1, speed: speed });
+            
+                jenP.appearsParticles(count, { basePos: new THREE.Vector3(posf, 0, -posf), scale: sizef, vect: baseVect, explose: baseExplose, colId: 1, speed: speed });
+                jenP.appearsParticles(count, { basePos: new THREE.Vector3(-posf, 0, posf), scale: sizef, vect: baseVect, explose: baseExplose, colId: 1, speed: speed });
 
-            jenP.appearsParticles(count, { basePos: new THREE.Vector3(posf, 0, 0), scale: sizef, vect: baseVect, explose: baseExplose, speed: speed });
-            jenP.appearsParticles(count, { basePos: new THREE.Vector3(-posf, 0, 0), scale: sizef, vect: baseVect, explose: baseExplose, speed: speed });
-            jenP.appearsParticles(count, { basePos: new THREE.Vector3(0, 0, posf), scale: sizef, vect: baseVect, explose: baseExplose, speed: speed });
-            jenP.appearsParticles(count, { basePos: new THREE.Vector3(0, 0, -posf), scale: sizef, vect: baseVect, explose: baseExplose, speed: speed });
-            jenP.appearsParticles(count, { basePos: new THREE.Vector3(posf, 0, posf), scale: sizef, vect: baseVect, explose: baseExplose, speed: speed });
-            jenP.appearsParticles(count, { basePos: new THREE.Vector3(-posf, 0, -posf), scale: sizef, vect: baseVect, explose: baseExplose, speed: speed });
+                jenP.appearsParticles(count, { basePos: new THREE.Vector3(posf, 0, 0), scale: sizef, vect: baseVect, explose: baseExplose, speed: speed });
+                jenP.appearsParticles(count, { basePos: new THREE.Vector3(-posf, 0, 0), scale: sizef, vect: baseVect, explose: baseExplose, speed: speed });
+                jenP.appearsParticles(count, { basePos: new THREE.Vector3(0, 0, posf), scale: sizef, vect: baseVect, explose: baseExplose, speed: speed });
+                jenP.appearsParticles(count, { basePos: new THREE.Vector3(0, 0, -posf), scale: sizef, vect: baseVect, explose: baseExplose, speed: speed });
+                jenP.appearsParticles(count, { basePos: new THREE.Vector3(posf, 0, posf), scale: sizef, vect: baseVect, explose: baseExplose, speed: speed });
+                jenP.appearsParticles(count, { basePos: new THREE.Vector3(-posf, 0, -posf), scale: sizef, vect: baseVect, explose: baseExplose, speed: speed });
+            }
 
             jenP.updater();
             jenP.sort(renderer, camera);

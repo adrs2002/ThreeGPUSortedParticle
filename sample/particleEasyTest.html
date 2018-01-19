@@ -44,7 +44,7 @@
     <div id="canvase3d"></div>
 
     <!-- <script src="three.min.js"></script> -->
-    <script src="../lib/three.min.js"></script>
+    <script src="../lib/three.js"></script>
     <script src="../lib/OrbitControls.js"></script>
 
     <!-- 追加点その１。プラグインを読む -->
@@ -84,7 +84,7 @@
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.001, 20000);
 
             // grid
-            var gridHelper = new THREE.GridHelper(14, 1, 0x303030, 0x303030);
+            var gridHelper = new THREE.GridHelper(8, 8, 0x303030, 0x303030);
             gridHelper.position.set(0, 0, 0);
             scene.add(gridHelper);
             // stats
@@ -131,26 +131,37 @@
             //new宣言をして、sceneにaddする。
             jenP = new ThreeGpuSortedParticle_easy(renderer, oneLine);
             scene.add(jenP);
-
+    
             // パーティクルの位置と大きさを決定して、出現させる
             // サイズをゼロにすれば、非出現っていうこともできるよ。多分。
             let p = 0;
             for(let y =0; y < oneLine ; y++){
                 for(let x = 0; x < oneLine; x++){
                     jenP.appearsParticles(1, 
-                        {basePos:new THREE.Vector3((Math.random() - 0.5) * 20000, (Math.random() - 0.5) * 100, (Math.random() - 0.5) * 20000),
+                        {basePos:new THREE.Vector3((Math.random() - 0.5) * 10000, (Math.random() - 0.5) * 100, (Math.random() - 0.5) * 10000),
                          size : (Math.random() * 0.2 + 0.5) * 1000 }
                     );            
                 }
             }
-
+    
+            /*
+           //for debug
+            for(let y =0; y < oneLine ; y++){
+                for(let x = 0; x < oneLine; x++){
+                    jenP.appearsParticles(1, 
+                        {basePos:new THREE.Vector3(x, 0 , y),
+                         size : 10}
+                    );            
+                }
+            }
+            */
         }
 
 
         function animate() {
 
             requestAnimationFrame(animate);
-
+            
             // 必須！ renderer.render(); の前に、アップデートをソートを行う必要がある！
             jenP.updater();
             jenP.sort(renderer, camera);

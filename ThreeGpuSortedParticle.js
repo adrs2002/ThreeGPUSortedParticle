@@ -18,7 +18,17 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
     constructor(_renderer, _oneLine, _colArray) {
         super();
         this.oneLineWidth = _oneLine ? _oneLine: 256;
-        this.particleCount = this.oneLineWidth * this.oneLineWidth;
+        this.oneLineHeight = _oneLine ? _oneLine: 256;
+        if(( /(iPad|iPhone|iPod)/g.test( navigator.userAgent ) ) ){
+            this.oneLineWidth = Math.min(this.oneLineWidth, 64);
+            this.oneLineHeight = Math.min(this.oneLineWidth, 32);
+        } else {
+            this.oneLineWidth = Math.min(this.oneLineWidth, 256);
+            this.oneLineHeight = Math.min(this.oneLineWidth, 128);
+        }
+
+        this.particleCount = this.oneLineWidth * this.oneLineHeight;
+
         this.activedCount = 0;
         this.isAddLoopded = false;
         
@@ -26,7 +36,7 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
         this.dataArray = this.dataTexture.image.data;
 
         this.colArray = _colArray ? _colArray :  [new THREE.Vector4(1.0, 0.9, 0.5, 0.8), new THREE.Vector4(0.8, 0.3, 0.0, 0.5), new THREE.Vector4(0.2, 0.0, 0.0, 0.0),
-                                                  new THREE.Vector4(0.5, 1.0, 1.0, 0.5), new THREE.Vector4(0.0, 0.4, 0.8, 0.5), new THREE.Vector4(0.0, 0.0, 0.4, 0.0)];
+                                                  new THREE.Vector4(0.8, 1.0, 1.0, 0.5), new THREE.Vector4(0.0, 0.4, 0.8, 0.5), new THREE.Vector4(0.0, 0.0, 0.4, 0.0)];
         
         const noizeImage = this._createNozieFrom64()
         this.noiseTexture = new THREE.Texture();
@@ -80,13 +90,13 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
     }
 
     _createDataTexture(){
-        const texture = new THREE.DataTexture( new Float32Array( this.oneLineWidth * this.oneLineWidth * 4 * 4 ), this.oneLineWidth, this.oneLineWidth * 4, THREE.RGBAFormat, THREE.FloatType );      
+        const texture = new THREE.DataTexture( new Float32Array( this.oneLineWidth * this.oneLineHeight * 4 * 4 ), this.oneLineWidth, this.oneLineHeight * 4, THREE.RGBAFormat, THREE.FloatType );      
         texture.wrapS = THREE.ClampToEdgeWrapping;
         texture.wrapT = THREE.ClampToEdgeWrapping;
         texture.minFilter = THREE.NearestFilter;
         texture.magFilter = THREE.NearestFilter;
 		texture.needsUpdate = true;
-
+        texture.generateMipmaps = false;
 		return texture;
     }
 
@@ -98,10 +108,10 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
         // テクスチャから情報を取得する「番地」の取得用UVの作成
         this.idUvArray = new Float32Array(this.particleCount * 2);
         let p = 0;
-        for ( let j = 0; j < this.oneLineWidth; j++ ) {
+        for ( let j = 0; j < this.oneLineHeight; j++ ) {
             for ( let i = 0; i < this.oneLineWidth; i++ ) {
                 this.idUvArray[ p++ ] = i / ( this.oneLineWidth - 1 );
-                this.idUvArray[ p++ ] = j / ( this.oneLineWidth - 1 );
+                this.idUvArray[ p++ ] = j / ( this.oneLineHeight - 1 );
             }
         }
 
@@ -111,16 +121,16 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
         this.lastUseRt = null;
 
         // const ext = _renderer.context.getExtension('WEBGL_color_buffer_float');
-        this.rt1 = new THREE.WebGLRenderTarget( this.oneLineWidth,  this.oneLineWidth, {
+        this.rt1 = new THREE.WebGLRenderTarget( this.oneLineWidth,  this.oneLineHeight, {
             minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat,
-            type: THREE.FloatType,
+            type: ( /(iPad|iPhone|iPod)/g.test( navigator.userAgent ) ) ? THREE.HalfFloatType : THREE.FloatType,
             wrapS :THREE.ClampToEdgeWrapping , // なんで RepeatWrapping からClampToEdgeWrappingに変えたら正しく動いたのだろう…
             wrapT :THREE.ClampToEdgeWrapping ,
             stencilBuffer: false
         });
-        this.rt2 = new THREE.WebGLRenderTarget( this.oneLineWidth,  this.oneLineWidth, {
+        this.rt2 = new THREE.WebGLRenderTarget( this.oneLineWidth,  this.oneLineHeight, {
             minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat,
-            type: THREE.FloatType,
+            type: ( /(iPad|iPhone|iPod)/g.test( navigator.userAgent ) ) ? THREE.HalfFloatType : THREE.FloatType,
             wrapS : THREE.ClampToEdgeWrapping ,
             wrapT : THREE.ClampToEdgeWrapping ,
             stencilBuffer: false
@@ -131,7 +141,8 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
         this.preRenderMaterial = new THREE.RawShaderMaterial({
             uniforms: {
                 dataMap: { type: "t", value: this.dataTexture },
-                cameraPosition : { type: "v3", value: new THREE.Vector3(0,0,0) }
+                modelViewM: { type: "fv1", value: null },
+                projectionM: { type: "fv1", value: null }
             },
             vertexShader: this._getInitialVShader(),
             fragmentShader: this._getPreRendShader(),
@@ -392,31 +403,20 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
      * @param { THREE.PerspectiveCamera } _camera 
      */
     sort(_renderer, _camera){
-        const size = this.oneLineWidth;
+        
         this.lastUseRt = null;
         
         // step1 現在の位置を、ソート用のデータテクスチャに入れるための事前描画を行う        
-        this.preRenderMaterial.uniforms.cameraPosition.value = _camera.position;
+        this.preRenderMaterial.uniforms.modelViewM.value = _camera.matrixWorldInverse.elements;    
+        this.preRenderMaterial.uniforms.projectionM.value = _camera.projectionMatrix.elements;
         this.preRenderMaterial.needsUpdate = true;
         this.lastUseRt = this.rt1;
         _renderer.render(this.preRenderScene, this.sortCam, this.lastUseRt);
 
-        /*
-        if(window.captFlag){
-            let pixelBuffer_bef = new Float32Array( 4 );
-            //read the pixel under the mouse from the texture
-            for(let i =0; i < 10;i++){
-                _renderer.readRenderTargetPixels(this.lastUseRt,i, 0, 1, 1, pixelBuffer_bef);
-                console.log(`id:${i} = ${pixelBuffer_bef[0]} , dist = ${pixelBuffer_bef[1]}  `);
-            }
-
-        }
-        */
-
         // step2 作成したデータテクスチャを使い、ソートする
         // thanks to: http://t-pot.com/program/90_BitonicSort/index.html
-        const pow = Math.log2(size * size);
-        for(let i =0; i < size;i++) {
+        const pow = Math.log2(this.oneLineHeight * this.oneLineWidth);
+        for(let i =0; i < this.oneLineHeight * this.oneLineWidth ;i++) {
             
             let step = i;
             let rank;
@@ -447,17 +447,6 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
 
         }
 
-        /*
-        if(window.captFlag){
-            for(let i =  0; i < this.particleCount;i+=100){                
-                let pixelBuffer = new Float32Array( 4 );
-                _renderer.readRenderTargetPixels(this.lastUseRt,i, 0, 1, 1, pixelBuffer);
-                console.log(`id:${i} = ${pixelBuffer[0]} , dist = ${pixelBuffer[1]}  `);
-            }
-        }
-        window.captFlag = false;
-        */
-       
         this.material.uniforms.sortMap.value = this.lastUseRt.texture;
 
     }
@@ -483,7 +472,7 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
         return `
         #include <common>
 
-        #define sortResolution vec2( ${this.oneLineWidth}.0, ${this.oneLineWidth}.0 )
+        #define sortResolution vec2( ${this.oneLineWidth}.0, ${this.oneLineHeight}.0 )
         #define gravity vec3( 0.0, 0.0, 0.0 )
 
         uniform sampler2D map;
@@ -505,12 +494,7 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
             vec4 sortVal = texture2D( sortMap, idUv );
 
             // ID位置にある位置情報その他を取得する
-            // 今回描画IDを、UV値に変換する
-            indexid = sortVal.x;
-            indexUv = vec2(mod(indexid, sortResolution.x) / sortResolution.x, floor(indexid / sortResolution.x) / sortResolution.y);
-
-            // 今回は画像を伸ばすことで情報を増やしているので、yのみ値が縮小する。
-            indexUv.y = indexUv.y * 0.25;
+            vec2 indexUv = vec2(sortVal.x, sortVal.y);
 
             // 位置取得
             float _idx = 0.0;
@@ -520,13 +504,12 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
             vec4 valEx1 = texture2D( dataMap, vec2(indexUv.x, indexUv.y + 0.50) );
             vec4 valEx2 = texture2D( dataMap, vec2(indexUv.x, indexUv.y + 0.75) );
 
-            float timeF = valEx2.y - 1.0;
+            float timeF = max(valEx2.y - 1.0, 0.0);
 
             float addUVSize = valEx2.x * 0.175;
 
             // 算出したＩＤ用ＵＶを、テクスチャのＵＶ変異にも使用
-            vUv2 = uv * (0.25 + addUVSize) + vec2(indexUv.x, indexid * 0.01);
-
+            vUv2 = uv * (0.25 + addUVSize) + vec2(indexUv.x, indexUv.x / indexUv.y);
 
             vec3 movePow =  vec3(valVec.xyz) * (valVec.w + timeF);
             vec4 mvPosition = modelViewMatrix * vec4( valPos.xyz + movePow + (gravity.xyz * timeF), 1.0 );
@@ -556,6 +539,7 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
             vTime = timeF;
             vColId = valEx1.x;
             vUv = uv;
+
         }
 
         `;
@@ -609,7 +593,7 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
             float uvDist = length(vUv - 0.5) * 2.5;
 
             float f = (texColor.x - 0.4) / (1.0 - 0.4 * 2.0) + (1.0 - uvDist);
-            if(uvDist < 0.001 || f < 0.001){ discard; }
+            // if(uvDist < 0.005 || f < 0.005){ discard; }
                 
             texColor = vec4(f,f,f,f);
             
@@ -623,6 +607,8 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
 
             // 開始後の、時間経過とともに透明になる仕組み　＆　中央から離れるにつれ透明度が下がるようにする仕組み
             gl_FragColor.a *= max((1.0 - uvDist), 0.0) * ( 1.0 - vTime);
+
+            gl_FragColor = texColor;
         }
         
         `;
@@ -635,18 +621,67 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
      */
     _getPreRendShader() {
         return `
-        #define resolution vec2( ${this.oneLineWidth}.0, ${this.oneLineWidth}.0 )
+        #define resolution vec2( ${this.oneLineWidth}.0, ${this.oneLineHeight}.0 )
         #define gravity vec3( 0.0, 0.0, 0.0 )
 
         precision mediump float;
         uniform sampler2D dataMap;
-        uniform vec3 cameraPosition;
+        
+        uniform float modelViewM[ 16 ];
+        uniform float projectionM[ 16 ];
+
+        mat4 getModelViewM(){
+            mat4 ref;
+            ref[0][0] = modelViewM[0];
+            ref[0][1] = modelViewM[1];
+            ref[0][2] = modelViewM[2];
+            ref[0][3] = modelViewM[3];
+
+            ref[1][0] = modelViewM[4];
+            ref[1][1] = modelViewM[5];
+            ref[1][2] = modelViewM[6];
+            ref[1][3] = modelViewM[7];
+
+            ref[2][0] = modelViewM[8];
+            ref[2][1] = modelViewM[9];
+            ref[2][2] = modelViewM[10];
+            ref[2][3] = modelViewM[11];
+
+            ref[3][0] = modelViewM[12];
+            ref[3][1] = modelViewM[13];
+            ref[3][2] = modelViewM[14];
+            ref[3][3] = modelViewM[15];
+
+            return ref;
+        }
+
+        mat4 getProjectionM(){
+            mat4 ref;
+            ref[0][0] = projectionM[0];
+            ref[0][1] = projectionM[1];
+            ref[0][2] = projectionM[2];
+            ref[0][3] = projectionM[3];
+
+            ref[1][0] = projectionM[4];
+            ref[1][1] = projectionM[5];
+            ref[1][2] = projectionM[6];
+            ref[1][3] = projectionM[7];
+
+            ref[2][0] = projectionM[8];
+            ref[2][1] = projectionM[9];
+            ref[2][2] = projectionM[10];
+            ref[2][3] = projectionM[11];
+
+            ref[3][0] = projectionM[12];
+            ref[3][1] = projectionM[13];
+            ref[3][2] = projectionM[14];
+            ref[3][3] = projectionM[15];
+
+            return ref;
+        }
 
         void main() {
             vec2 uv = gl_FragCoord.xy / resolution.xy;
-            // uv.y = 1.0 - uv.y;
-            vec2 elem2d = floor(gl_FragCoord.xy);
-            float elem1d = elem2d.y * resolution.x + elem2d.x;
             
             uv.y = uv.y * 0.25;
 
@@ -662,8 +697,10 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
             vec3 movePow =  vec3(valVec.xyz) * (valVec.w + timeF);
             vec3 putPosition = vec3(valPos.xyz) + movePow + (gravity * timeF);
 
-            float d = distance(putPosition, cameraPosition);
-            gl_FragColor = vec4(elem1d, d, timeF, 1.0);     
+            vec4 mvPosition = getModelViewM() * vec4( putPosition.xyz , 1.0 );
+            vec4 pass1Pos = getProjectionM() * mvPosition; 
+
+            gl_FragColor = vec4(uv.x, uv.y,  (pass1Pos.z * 1000.0 - 1000.0) / length(resolution) * 0.01, 1.0);
         }
         `;
     }
@@ -675,7 +712,7 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
         return `
         #define delta ( 1.0 / 60.0 )
         #define halfDelta vec2( 0.5, 0.5 )
-        #define resolution vec2( ${this.oneLineWidth}.0, ${this.oneLineWidth}.0 )
+        #define resolution vec2( ${this.oneLineWidth}.0, ${this.oneLineHeight}.0 )
 
         precision mediump float;
 
@@ -703,8 +740,8 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
 
             vec4 val1 = texture2D(texture, adr2d / resolution);
         
-            vec4 cmin = (val0.y < val1.y) ? val0: val1;
-            vec4 cmax = (val0.y < val1.y) ? val1: val0;
+            vec4 cmin = (val0.z < val1.z) ? val0: val1;
+            vec4 cmax = (val0.z < val1.z) ? val1: val0;
         
             gl_FragColor = (csign == cdir) ? cmax : cmin;// 遠い順から表示したいので、昇順にする
 

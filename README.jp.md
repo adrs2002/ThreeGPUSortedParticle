@@ -13,7 +13,7 @@ Three.jsで楽にアルファ付きパーティクルを表示するためのア
 
 ## Demo
 
-* [demo](http://adrs2002.sakura.ne.jp/sandbox/particle2/sample/particleTest.html)
+* [demo](http://adrs2002.sakura.ne.jp/sandbox/particle2/sample/particleTest.html) (WIP!!)
 * [demo2](http://adrs2002.sakura.ne.jp/sandbox/particle2/sample/particleEasyTest.html)  (easy版による雲の表現)
 
 
@@ -59,8 +59,10 @@ Three.jsで楽にアルファ付きパーティクルを表示するためのア
 
 ### 注意事項
 
-おそらく、現時点では、モバイル系では全滅です。動きません。どうしよう。泣きたい。
-
+モバイル環境(特にモバイルiOS)では、最大パーティクル数に制限をかけています（最大64x32＝2048)。  
+これは、モバイルのiOSでは、浮動小数点の精度に制限が掛けられており、この数以上のソートを行うと、とたんに不安定になるからです。  
+（現状でも、64x32で行うと、手前側の一部のパーティクルが正しくソートされない現象が見られます。32x32では発生しません）  
+手は打とうと思うのですが、若干手詰まり感。誰かへるぷ。  
 
 ## LICENCE
  MIT.

@@ -16,7 +16,7 @@ The aim of this sample is to use GPU-based processing (GPGPU) to solve the rearr
   
 ## Demo
 
-* [demo](http://adrs2002.sakura.ne.jp/sandbox/particle2/sample/particleTest.html)
+* demo WIP
 * [demo2](http://adrs2002.sakura.ne.jp/sandbox/particle2/sample/particleEasyTest.html)  (cloud view by use easy ver)
 
 
