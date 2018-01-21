@@ -1,0 +1,264 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+ <title>three.js webgl - Particle Plugin Sample</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+    <style>
+        body {
+            font-family: Monospace;
+            background-color: #000;
+            color: #fff;
+            margin: 0px;
+            overflow: hidden;
+        }
+
+        #info {
+            color: #fff;
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            z-index: 100;
+            display: block;
+        }
+
+        #info a,
+        .button {
+            color: #f00;
+            font-weight: bold;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="info">
+		<a href="http://threejs.org" target="_blank">three.js</a> Particle Effect with GPU Sorting Test<br />
+        create by <a href="https://github.com/adrs2002/ThreeGPUSortedParticle" target="_blank"> Jey-en : Repo </a>
+        
+	</div>
+    <div id="canvase3d"></div>
+
+    <!-- <script src="three.min.js"></script> -->
+    <script src="../lib/three.min.js"></script>
+    <script src="../lib/OrbitControls.js"></script>
+
+    <!-- 追加点その１。プラグインを読む -->
+    <script src="../ThreeGpuSortedParticle.js"></script>
+
+    <script src="../lib/Detector.js"></script>
+    <script src="../lib/stats.min.js"></script>
+
+    <script>
+
+        var StringBuffer = function (string) {
+            this.buffer = [];
+            this.append = function (string) { this.buffer.push(string); return this; };
+            this.toString = function () { return this.buffer.join(''); };
+            if (string) { this.append(string); }
+        };
+
+        if (!Detector.webgl) Detector.addGetWebGLMessage();
+        var container, stats, controls;
+        var camera, scene, renderer;
+        var clock = new THREE.Clock();
+  
+        var d = new Date();
+
+        scene = new THREE.Scene();
+        //追加点その２。オブジェクトを用意。後々アクセスできるように、変数内ではなく、こんな感じでnullで用意
+        var jenP = null;
+
+        init();
+
+        function init() {
+
+            LastDateTime = Date.now();
+
+            container = document.createElement('div');
+
+            document.body.appendChild(container);
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.001, 10000);
+
+            // grid
+            var gridHelper = new THREE.GridHelper(14, 1, 0x303030, 0x303030);
+            gridHelper.position.set(0, 0, 0);
+            scene.add(gridHelper);
+            // stats
+            stats = new Stats();
+            container.appendChild(stats.dom);
+            
+            renderer = new THREE.WebGLRenderer();
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000088);
+            container.appendChild(renderer.domElement);
+		    if ( renderer.extensions.get( 'ANGLE_instanced_arrays' ) === false ) {
+				// document.getElementById( "notSupported" ).style.display = "";
+				return false;
+			}
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.target.set(0, 40, 0);
+            camera.position.set(0, 300, 500);
+            camera.up.set(0, 1, 0);
+
+            //////////////////////////////////////////////////
+            //追加点その３。new宣言をして、sceneにaddする。
+            jenP = new ThreeGpuSortedParticle(renderer, 32, 
+                                             [  new THREE.Vector4(1.0, 0.9, 0.5, 0.8), new THREE.Vector4(0.8, 0.2, 0.0, 0.5), new THREE.Vector4(0.2, 0.0, 0.0, 0.4),
+                                                new THREE.Vector4(0.8, 1.0, 1.0, 0.5), new THREE.Vector4(0.0, 0.4, 0.8, 0.5), new THREE.Vector4(0.0, 0.0, 0.4, 0.0),
+                                                new THREE.Vector4(0.75, 0.75, 0.73, 0.3), new THREE.Vector4(0.6, 0.6, 0.7, 0.3), new THREE.Vector4(0.2, 0.2, 0.2, 0.2)
+                                             ]
+                                            );
+            scene.add(jenP);
+            //////////////////////////////////////////
+            // makeCloud();
+
+            missiles =[];    
+            ifLeft = false;
+            window.onclick=launchMissile;
+            isMobile = /(iPad|iPhone|iPod)/g.test( navigator.userAgent );
+
+            controls.update();
+            window.addEventListener('resize', onWindowResize, false);
+            animate();
+
+        }
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        //
+        var delSpan=0.0;
+        function animate() {
+
+            requestAnimationFrame(animate);
+
+            const dul =  clock.getDelta();
+            updateMisso(dul);
+
+            jenP.updater();
+            jenP.sort(renderer, camera);
+
+            stats.update();
+            render();
+        }
+        
+        function render() {
+            renderer.render(scene, camera);
+        }
+
+        //////////////
+
+        function makeCloud(){
+            const makeScale = 500;
+            const localMaxCount = 2 * jenP.particleCount * 0.001;
+            let total = 0;
+            for(let i =-5; i <= 5; i++){
+                for(let m =-5; m <= 5; m++){
+                    const basePos = new THREE.Vector3(i * makeScale, 0.0, m * makeScale);
+                    const makeCount = Math.floor( ( Math.random() + (5 - Math.abs(i) ) * 0.1 + (5 - Math.abs(m)) * 0.1  ) * jenP.particleCount * 0.001);
+                    
+                    const par = makeCount / localMaxCount * 0.5;
+                    for(let k =0; k < makeCount; k++){
+                        jenP.appearsParticles(1, 
+                        {   basePos:new THREE.Vector3(  basePos.x + (Math.random() - 0.5) * makeScale, 
+                                                        (Math.random() - 0.5) * makeScale * 0.1, 
+                                                        basePos.z + (Math.random() - 0.5) * makeScale),
+                        scale : (Math.random() * 0.3 + 0.5) * makeScale * (1.1 - par)  * 0.5, speed : 0,
+                         colId : 2, lifeTimeFactor : 0 });
+
+                        total++;
+                    }
+                }
+            }
+
+            console.log(`makeCount = ${total}`);
+
+        }
+
+        class missile {
+            constructor(){
+                this.Pos = new THREE.Vector3();    
+                this.dul = 0;
+                this.Vect = new THREE.Vector3(); 
+                this.effectBlank =0;
+                this.particleParam1 = {
+                    basePos:new THREE.Vector3(),
+                    scale : isMobile ? 2.0 : 1.0,speed : 0,  colId : 2, lifeTimeFactor : 0.5
+                };
+
+                this.particleParam2 = {
+                    basePos:new THREE.Vector3(),
+                    scale: 10, explose: 3.0, colId: 0, speed: 5.0 ,  lifeTimeFactor : 0.75
+                }
+            }
+
+            set(_pos, _vect){
+                this.Pos.copy(_pos);
+                this.Vect.copy(_vect).multiplyScalar(3);
+            }
+
+            update(_dul){
+                this.dul += _dul;
+                if(this.dul > 3.0){
+                    return false;
+                }
+                if(this.dul > 0.5 && Math.random() < 0.05){
+                    // 爆発して終了
+                    this.particleParam2.basePos.copy(this.Pos);
+                    jenP.appearsParticles(10, this.particleParam2);
+                    return false;
+                }
+                this.Pos.add(this.Vect);
+                this.particleParam1.basePos.copy(this.Pos);
+                this.effectBlank++;
+                //if(this.effectBlank > 1 || !isMobile)
+                {
+                    jenP.appearsParticles(1, this.particleParam1);
+                    this.effectBlank = 0;
+                }
+                return true;
+            }
+        }
+
+        
+        function launchMissile(){
+            const misso = new missile();
+            const v = new THREE.Vector3();
+            v.copy(controls.target);
+            const v2 = new THREE.Vector3();
+            if(ifLeft){
+                v2.copy(camera.localToWorld(new THREE.Vector3(Math.random() * 20,  Math.random() * -10 - 3,0)));                 
+            } else{
+                v2.copy(camera.localToWorld(new THREE.Vector3(Math.random() * -20, Math.random() * -10 - 3,0)));
+            }
+
+            v.sub(v2).normalize();
+            misso.set(v2, v);
+            missiles.push(misso);
+
+            ifLeft = !ifLeft;
+        }
+
+        function updateMisso(_dul){
+            for(let i = 0; i < missiles.length;){
+                if(!missiles[i].update(_dul)){
+                    missiles.shift();
+                } else {
+                    i++;
+                }
+            }
+        }
+
+    </script>
+
+</body>
+
+</html>

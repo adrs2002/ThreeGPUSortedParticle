@@ -124,19 +124,21 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
         //
+        var delSpan=0.0;
         function animate() {
 
             requestAnimationFrame(animate);
 
-            // 追加点その４。パーティクルを追加する。１フレームで追加する数が引数となる。
             const posf = 20;
             const sizef = 3.0;
-            const speed = 5.0;
+            const speed = 7.0;
             const count = 1;
             const baseVect = new THREE.Vector3(0,2.0,0);
-            const baseExplose = 0.15;
+            const baseExplose = 0.5;
+            delSpan += clock.getDelta();
 
-            if(Math.random() > 0.95){
+            //if(delSpan > 2.0)
+            {
                 jenP.appearsParticles(count, { basePos: new THREE.Vector3(0, 0.0, 0), scale: sizef, vect: baseVect, explose: baseExplose, colId: 1, speed: speed });
             
                 jenP.appearsParticles(count, { basePos: new THREE.Vector3(posf, 0, -posf), scale: sizef, vect: baseVect, explose: baseExplose, colId: 1, speed: speed });
@@ -148,6 +150,7 @@
                 jenP.appearsParticles(count, { basePos: new THREE.Vector3(0, 0, -posf), scale: sizef, vect: baseVect, explose: baseExplose, speed: speed });
                 jenP.appearsParticles(count, { basePos: new THREE.Vector3(posf, 0, posf), scale: sizef, vect: baseVect, explose: baseExplose, speed: speed });
                 jenP.appearsParticles(count, { basePos: new THREE.Vector3(-posf, 0, -posf), scale: sizef, vect: baseVect, explose: baseExplose, speed: speed });
+                delSpan = 0;
             }
 
             jenP.updater();
@@ -158,7 +161,6 @@
         }
         
         function render() {
-            //renderer.setFaceCulling(THREE.CullFaceFront, THREE.FrontFaceDirectionCW);
             renderer.render(scene, camera);
         }
 
