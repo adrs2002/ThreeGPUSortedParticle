@@ -1,0 +1,479 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>three.js webgl - Particle Plugin Editor</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+    <style>
+        body {
+            font-family: Monospace;
+            background-color: #000;
+            color: #fff;
+            margin: 0px;
+            overflow: hidden;
+        }
+
+        #info {
+            color: #fff;
+            position: absolute;
+            top: 10px;
+            left: 20%;
+            width: 50%;
+            text-align: center;
+            z-index: 10;
+            display: block;
+            user-select: none;
+        }
+
+        #info a {
+            color: #f00;
+            font-weight: bold;
+            text-decoration: underline;
+            cursor: pointer;
+            user-select: contain;
+        }
+
+        .futter {
+            color: #fff;
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            z-index: 110;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="info">
+		<a href="http://threejs.org" target="_blank">three.js</a> Particle Effect with GPU Sorting Editor<br />
+        create by <a href="https://github.com/adrs2002/ThreeGPUSortedParticle" target="_blank"> Jey-en : Repo </a>
+        
+	</div>
+
+    <div class="futter">
+        <input type="button" value=" Code Generate（コード生成）" onclick="generate()"><br>
+        <textarea id="codeput" name="codeput" cols="100" rows="4"></textarea>
+    </div>
+
+    <div id="canvase3d"></div>
+    
+    <!-- <script src="three.min.js"></script> -->
+    <script src="../lib/three.min.js"></script>
+    <script src="../lib/OrbitControls.js"></script>
+    <script src="../lib/dat.gui.min.js"></script>
+    <script src="../lib/Detector.js"></script>
+    <!-- 追加点その１。プラグインを読む -->
+    <script src="../ThreeGpuSortedParticle.js"></script>
+
+    <script src="../lib/stats.min.js"></script>
+
+    <script>
+        var StringBuffer = function (string) {
+            this.buffer = [];
+            this.append = function (string) { this.buffer.push(string); return this; };
+            this.toString = function () { return this.buffer.join(''); };
+            if (string) { this.append(string); }
+        };
+
+        if (!Detector.webgl) Detector.addGetWebGLMessage();
+        var container, stats, controls;
+        var camera, scene, renderer;
+        var clock = new THREE.Clock();
+        var gui = new dat.GUI();
+
+        scene = new THREE.Scene();
+
+        var jenP = null;
+        var jenP2 = null;
+
+        var basePoses = [];
+
+        var particleColors = [new THREE.Vector4(0.63, 0.63, 0.2, 0.5), new THREE.Vector4(0.5, 0.25, 0.05, 0.5), new THREE.Vector4(0.2, 0.05, 0.0, 0.5)];
+
+        var colors = {
+            color0: [particleColors[0].x * 255, particleColors[0].y * 255, particleColors[0].z * 255],
+            color1: [particleColors[1].x * 255, particleColors[1].y * 255, particleColors[1].z * 255],
+            color2: [particleColors[2].x * 255, particleColors[2].y * 255, particleColors[2].z * 255]
+        }
+
+        var basicOption = {
+            colors: particleColors,
+            BackColor: [30 , 30 , 200 ],
+            gravity: new THREE.Vector3(0.0, 0.17, 0.0),
+
+        };
+
+        var appearsOption = {
+            batchMode: false,
+            multiEmitter: false,
+            interval: 0,
+            basePos: new THREE.Vector3(),
+            addFrameCount: 1,
+            scale: 1,
+            scaleRandom: 0.45,
+            vect: new THREE.Vector3(0, 1, 0).normalize(),
+            speed: 10.0,
+            explose: 0.25,
+            speedGamma: 1.0,
+            lifeTimeFactor: 1.0,
+            blur:0.05,
+            colorGamma: 1.6,
+            imageGamma: 0.4
+        };
+
+        init();
+
+        function init() {
+
+            container = document.createElement('div');
+
+            document.body.appendChild(container);
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
+
+            // grid
+            var gridHelper = new THREE.GridHelper(14, 1, 0x303030, 0x303030);
+            gridHelper.position.set(0, 0, 0);
+            scene.add(gridHelper);
+            // stats
+            stats = new Stats();
+            container.appendChild(stats.dom);
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x2222aa);
+            container.appendChild(renderer.domElement);
+            if (renderer.extensions.get('ANGLE_instanced_arrays') === false) {
+                // document.getElementById( "notSupported" ).style.display = "";
+                return false;
+            }
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.target.set(0, 0, 0);
+            camera.position.set(0, 2, 30);
+            camera.up.set(0, 1, 0);
+
+            //////////////////////////////////////////////////
+            //追加点その３。new宣言をして、sceneにaddする。
+            jenP = new ThreeGpuSortedParticle(renderer, 32, particleColors);
+            scene.add(jenP);
+
+            initDat();
+
+            controls.update();
+            window.addEventListener('resize', onWindowResize, false);
+            animate();
+
+        }
+
+        //
+        function animate() {
+
+            requestAnimationFrame(animate);
+            const dul =  clock.getDelta();
+            // 追加点その４。パーティクルを追加する。１フレームで追加する数が引数となる。
+            if(!appearsOption.batchMode){
+                jenP.appearsParticles(appearsOption.addFrameCount, appearsOption);
+                appearsOption.interval = 0;
+
+                if(appearsOption.multiEmitter){
+                    appearsOption.basePos.set(10,0,-10);
+                    jenP.appearsParticles(appearsOption.addFrameCount, appearsOption);
+                    appearsOption.basePos.set(-10,0,10);
+                    jenP.appearsParticles(appearsOption.addFrameCount, appearsOption);
+                    appearsOption.basePos.set(0,0,0);
+                }
+
+            } else {
+                appearsOption.interval += dul;
+                if(appearsOption.interval > 2.5){
+                    jenP.appearsParticles(appearsOption.addFrameCount * 10, appearsOption);
+                    appearsOption.interval =0;
+                    
+                    if(appearsOption.multiEmitter){
+                        appearsOption.basePos.set(10,0,-10);
+                        jenP.appearsParticles(appearsOption.addFrameCount * 10, appearsOption);
+                        appearsOption.basePos.set(-10,0,10);
+                        jenP.appearsParticles(appearsOption.addFrameCount * 10, appearsOption);
+                        appearsOption.basePos.set(0,0,0);
+                    }
+                }
+            }
+
+            jenP.updater();
+            jenP.sort(renderer, camera);
+
+            stats.update();
+            render();
+        }
+
+        function render() {
+            renderer.render(scene, camera);
+        }
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function initDat() {
+
+
+
+            //////////////////////////////
+            // 初期値のインスタンスを紐付ける	.listen()　つけたら露骨に重いでやんの
+            var f1 = gui.addFolder('BasicOption');
+
+            var c0 = f1.addColor(colors, 'color0');
+            c0.onChange(function (value) { updateMaterial(); });
+            var c1 = f1.addColor(colors, 'color1');
+            c1.onChange(function (value) { updateMaterial(); });
+            var c2 = f1.addColor(colors, 'color2');
+            c2.onChange(function (value) { updateMaterial(); });
+            /*
+            var cGrav = f1.add(basicOption, 'gravity_e', -0.5, 0.5).step(0.01);
+            cGrav.onChange(function (value) {
+                updateMaterial();
+            });
+            */
+            var cBack = f1.addColor(basicOption, 'BackColor');
+            cBack.onChange(function (value) { updateBackColor(); });
+
+            ///////////////////////////
+            var f2 = gui.addFolder('FrameAppearsOption');
+            
+            f2.add(appearsOption, 'batchMode');
+            f2.add(appearsOption, 'multiEmitter');
+            
+            f2.add(appearsOption, 'addFrameCount', 1, 10).step(1);
+            f2.add(appearsOption, 'scale', 0.1, 5.0).step(0.01);
+            f2.add(appearsOption, 'scaleRandom', 0.0, 3.0).step(0.01);
+            f2.add(appearsOption, 'speed', 0.1, 20.0);
+            f2.add(appearsOption, 'explose', 0.0, 1.0).step(0.01);
+            f2.add(appearsOption, 'speedGamma', 0.000, 3.000).step(0.01);
+            f2.add(appearsOption, 'blur', 0.000, 1.000).step(0.01);
+            f2.add(appearsOption, 'colorGamma', 0.000, 3.000).step(0.01);
+            f2.add(appearsOption, 'imageGamma', 0.100, 1.000).step(0.01);
+            
+            f2.add(appearsOption, 'lifeTimeFactor', 0.1, 5).step(0.1);
+            
+            var f3 = gui.addFolder('Sample PreSets');
+            var obj = { preSet0: function () { loadPreset0(); } };
+            f3.add(obj, 'preSet0');
+
+            var obj = { preSet1: function () { loadPreset1(); } };
+            f3.add(obj, 'preSet1');
+
+            var obj2 = { preSet2: function () { loadPreset2(); } };
+            f3.add(obj2, 'preSet2');
+
+            var obj3 = { preSet3: function () { loadPreset3(); } };
+            f3.add(obj3, 'preSet3');
+
+            f3.open();
+            f2.open();
+            f1.open();
+            //////////////////////////////////////////
+        }
+
+        function updateBackColor(){
+            let c0 = getColor(basicOption.BackColor);
+            renderer.setClearColor(c0);
+        }
+
+        function getColor(_colArray){
+            let c = {};
+            if(!Array.isArray(_colArray)){
+                c = new THREE.Color(_colArray);
+            } else {
+                c = new THREE.Color(_colArray[0] / 255, _colArray[1] / 255, _colArray[2] / 255);
+            }
+            return c;
+        }   
+
+        function updateMaterial() {
+            var v = new THREE.Vector3(0, basicOption.gravity_e, 0);
+            jenP.material.uniforms.gravity.value = v;
+
+            let c0 = getColor(colors.color0);
+            let c1 = getColor(colors.color1);
+            let c2 = getColor(colors.color2);
+
+            var putCols = [
+                new THREE.Vector4(c0.r, c0.g, c0.b, 0.5),
+                new THREE.Vector4(c1.r, c1.g, c1.b,  0.3),
+                new THREE.Vector4(c2.r, c2.g, c2.b,  0.1)
+            ];
+
+            jenP.material.uniforms.colors.value = putCols;
+            jenP.material.needsUpdate = true;
+
+        }
+        /////////        
+        function loadPreset0() {
+            
+            colors.color0 = [255 * 0.63, 255 * 0.63, 255 * 0.2];
+            colors.color1 = [255 * 0.50, 255 * 0.25, 255 * 0.05];
+            colors.color2 = [255 * 0.18, 255 * 0.05, 255 * 0.00];
+
+            for (var i = 0; i < gui.__folders.BasicOption.__controllers.length; i++) {
+                gui.__folders.BasicOption.__controllers[i].updateDisplay();
+            }
+            ////
+
+            appearsOption.addFrameCount = 1;
+            appearsOption.scale = 1;
+            appearsOption.scaleRandom = 0.45;
+            appearsOption.speed = 10;
+            appearsOption.explose = 0.25;
+            appearsOption.speedGamma = 1.0;
+            appearsOption.blur =  0.05;
+            appearsOption.colorGamma =  1.6;
+            appearsOption.imageGamma = 0.4;
+
+            for (var i = 0; i < gui.__folders.FrameAppearsOption.__controllers.length; i++) {
+                gui.__folders.FrameAppearsOption.__controllers[i].updateDisplay();
+            }
+
+            updateMaterial();
+            generate();
+        }
+
+        function loadPreset1() {
+            
+            colors.color0 = [255 * 0.34, 255 * 0.34, 255 * 0.34];
+            colors.color1 = [255 * 0.23, 255 * 0.23, 255 * 0.23];
+            colors.color2 = [255 * 0.12, 255 * 0.12, 255 * 0.12];
+
+            for (var i = 0; i < gui.__folders.BasicOption.__controllers.length; i++) {
+                gui.__folders.BasicOption.__controllers[i].updateDisplay();
+            }
+            ////
+
+            appearsOption.addFrameCount = 3;
+            appearsOption.scale = 1.0;
+            appearsOption.scaleRandom = 0.4;
+            appearsOption.speed = 13;
+            appearsOption.explose = 0.21;
+            appearsOption.speedGamma = 2.75;
+            appearsOption.blur =  0.3;
+            appearsOption.colorGamma =  2.0;
+            appearsOption.imageGamma = 0.36;
+            appearsOption.lifeTimeFactor = 0.8;
+
+            for (var i = 0; i < gui.__folders.FrameAppearsOption.__controllers.length; i++) {
+                gui.__folders.FrameAppearsOption.__controllers[i].updateDisplay();
+            }
+
+            updateMaterial();
+            generate();
+        }
+        /////////        
+        function loadPreset2() {
+            
+            colors.color0 = [255 * 0.3933102652825836, 255 * 0.42380758531786433, 255 * 0.9117647058823529];
+            colors.color1 = [255 * 0.052479815455594, 255 * 0.20042065269014192, 255 * 0.4117647058823529];
+            colors.color2 = [255 * 0.05721781215369648, 255 * 0.03383314109957711, 255 * 0.43137254901960786];
+
+            for (var i = 0; i < gui.__folders.BasicOption.__controllers.length; i++) {
+                gui.__folders.BasicOption.__controllers[i].updateDisplay();
+            }
+            ////
+
+            appearsOption.addFrameCount = 2;
+            appearsOption.scale = 0.25;
+            appearsOption.scaleRandom = 0.07;
+            appearsOption.speed = 0.9;
+            appearsOption.explose = 0.3;
+            appearsOption.speedGamma = 1.03;
+
+            for (var i = 0; i < gui.__folders.FrameAppearsOption.__controllers.length; i++) {
+                gui.__folders.FrameAppearsOption.__controllers[i].updateDisplay();
+            }
+
+            updateMaterial();
+            generate();
+        }
+        /////////        
+        function loadPreset3() {
+            
+            colors.color0 = [255 * 0.75, 255 * 0.0, 255 * 0.08];
+            colors.color1 = [255 * 0.42, 255 * 0.0, 255 * 0.07];
+            colors.color2 = [255 * 0.185, 255 * 0.0, 255 * 0.045];
+
+            for (var i = 0; i < gui.__folders.BasicOption.__controllers.length; i++) {
+                gui.__folders.BasicOption.__controllers[i].updateDisplay();
+            }
+            ////
+
+            appearsOption.addFrameCount = 2;
+            appearsOption.scale = 0.65;
+            appearsOption.scaleRandom = 0.7;
+            appearsOption.speed = 1.5;
+            appearsOption.explose = 0.3;
+            appearsOption.speedGamma = 0.81;
+
+            for (var i = 0; i < gui.__folders.FrameAppearsOption.__controllers.length; i++) {
+                gui.__folders.FrameAppearsOption.__controllers[i].updateDisplay();
+            }
+
+            updateMaterial();
+            generate();
+        }
+
+        function generate() {
+            var txt = document.getElementById('codeput');
+
+            txt.value = `
+        	// initialize
+        	var jenP = null;
+        	
+        	// after created scene 
+        	jenP = new jenParticle(
+                renderer,
+                32, // ← default(1024 particles) can edit Power of two (64,128,256) max 256
+                [   new THREE.Vector4(${colors.color0[0] / 255.0}, ${colors.color0[1] / 255.0},${colors.color0[2] / 255.0}, 0.5), 
+                    new THREE.Vector4(${colors.color1[0] / 255.0}, ${colors.color1[1] / 255.0},${colors.color1[2] / 255.0}, 0.3),
+                    new THREE.Vector4(${colors.color2[0] / 255.0}, ${colors.color2[1] / 255.0},${colors.color2[2] / 255.0}, 0.1)]
+        	);
+            scene.add(jenP);            
+
+        	//////////////////
+        	// ↓ call this at the timing you want to add Particles
+        	
+			jenP.appearsParticle(${appearsOption.addFrameCount},
+				{
+					//basePos: vector3 ←Edit your position 
+					scale: ${appearsOption.scale},
+					scaleRandom: ${appearsOption.scaleRandom},
+					vect: new THREE.Vector3(0,1,0), // ←Edit your move vector as need,
+					speed:  ${appearsOption.speed},
+					explose:  ${appearsOption.explose},
+                    speedGamma:  ${appearsOption.speedGamma},
+                    blur : ${appearsOption.blur},
+                    colorGamma : ${appearsOption.colorGamma},
+                    imageGamma : ${appearsOption.imageGamma},
+                    lifeTimeFactor : Math.max((Math.random() - 0.5 ) + ${appearsOption.lifeTimeFactor}, 0.1)
+				}
+            );
+            
+            //////////////
+            ///  ..and, need calls [ update ] and [ sort ] Just before [ renderer.render(); ]
+
+            jenP.updater();
+            jenP.sort(renderer, camera);
+            renderer.render();
+        	`;
+            txt.select();
+            document.execCommand('copy');
+        }
+    </script>
+
+</body>
+
+</html>

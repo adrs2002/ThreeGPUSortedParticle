@@ -95,7 +95,7 @@
             renderer = new THREE.WebGLRenderer();
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setClearColor(0x222222);
+            renderer.setClearColor('#967e5c');
             container.appendChild(renderer.domElement);
 		    if ( renderer.extensions.get( 'ANGLE_instanced_arrays' ) === false ) {
 				// document.getElementById( "notSupported" ).style.display = "";
@@ -103,13 +103,25 @@
 			}
 
             controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.target.set(0, 0, 0);
-            camera.position.set(0, 50, 80);
+            controls.target.set(0, 10, 0);
+            camera.position.set(0, -3, 30);
             camera.up.set(0, 1, 0);
 
             //////////////////////////////////////////////////
             //追加点その３。new宣言をして、sceneにaddする。
-            jenP = new ThreeGpuSortedParticle(renderer, 32);
+            jenP = new ThreeGpuSortedParticle(renderer, 32,
+                [ new THREE.Vector4(0.8333333333333334, 0.5651672433679356,0.3267973856209151, 0.9), 
+                    new THREE.Vector4(0.5, 0.25,0.05, 0.7),
+                    new THREE.Vector4(0.2, 0.05,0, 0.2),
+
+                    new THREE.Vector4(0.5588235294117647, 0.5588235294117647,0.5588235294117647, 0.75), 
+                    new THREE.Vector4(0.38235294117647056, 0.38235294117647056,0.38235294117647056, 0.4),
+                    new THREE.Vector4(0.23529411764705888, 0.23529411764705888,0.23529411764705888, 0.1),
+
+                    new THREE.Vector4(0.5588235294117647, 0.5588235294117647,0.5588235294117647, 0.3), 
+                    new THREE.Vector4(0.38235294117647056, 0.38235294117647056,0.38235294117647056, 0.2),
+                    new THREE.Vector4(0.23529411764705888, 0.23529411764705888,0.23529411764705888, 0.1)
+                ]);
             scene.add(jenP);
             //////////////////////////////////////////
 
@@ -132,49 +144,86 @@
             const posf = 20;
             const count = 1;
 
-            delSpan += clock.getDelta();
-
-            const param = {
-                basePos: new THREE.Vector3(0, 0.0, 0),
-                scale: 3.0, 
-                vect: new THREE.Vector3(0,2.0,0), 
-                explose: 0.5, 
-                colId: 1, 
-                speed: 20, 
-                speedGamma: 0.9
+            const param1 = {
+                basePos: new THREE.Vector3(0,2,0),
+                scale: 2.32,
+                scaleRandom: 0.13,
+                vect: new THREE.Vector3(0,1,0), // ←Edit your move vector as need,
+                speed:  7,
+                explose:  0.2,
+                speedGamma:  1.1,
+                blur : 0.05,
+                colorGamma : 2.65,
+                imageGamma : 0.29,
+                lifeTimeFactor : 0.1,
+                colId:0
             };
 
-            //if(delSpan > 2.0)
+            const param2 = {
+                basePos: new THREE.Vector3(0,0,0),
+                scale: 1.07,
+                scaleRandom: 0.13,
+                vect: new THREE.Vector3(0,0.3,0), // ←Edit your move vector as need,
+                speed:  10,
+                explose:  0.21,
+                speedGamma:  2,
+                blur : 0.43,
+                colorGamma : 2.65,
+                imageGamma : 0.39,
+                lifeTimeFactor : 0.1,
+                colId: 1
+            };
+
+
+            const param3 = {
+                basePos: new THREE.Vector3(0,0,0),
+                scale: 3,
+                scaleRandom: 0.1,
+                vect: new THREE.Vector3(0,-0.1,0), // ←Edit your move vector as need,
+                speed:  15,
+                explose:  0.21,
+                speedGamma:  2.0,
+                blur : 0.1,
+                colorGamma : 2.65,
+                imageGamma : 0.5,
+                lifeTimeFactor : 0.3,
+                colId: 2
+            };
+
+            if(delSpan === 0.0)
             {
-                jenP.appearsParticles(count, param );
-                
-                param.basePos.set(posf, 0, -posf);
-                jenP.appearsParticles(count, param );
+                // 中央の大玉
+                for(let i =0; i < 10;i++){
+                    param1.speed = 3 + i*3;
+                    jenP.appearsParticles(3, param1 );
+                }
 
-                param.basePos.set(-posf, 0, posf);
-                jenP.appearsParticles(count, param );
-                
-                param.colId = 0;
-                param.basePos.set(posf, 0, 0);
-                jenP.appearsParticles(count, param );
+                // 放射状に爆炎
+                const rolMax = 16;
+                const rowPow = Math.PI / rolMax;
+                for(let i =0; i < rolMax;i++){
+                    param2.vect.x = Math.cos(i * rowPow * Math.PI);
+                    param2.vect.z = Math.sin(i * rowPow * Math.PI);
+                    param2.lifeTimeFactor = 0.1;
+                    param2.speed = 10;
+                    jenP.appearsParticles(10, param2);
+                    param2.speed = 15;
+                    param2.lifeTimeFactor = 0.13;
+                    jenP.appearsParticles(10, param2);
 
-                param.basePos.set(-posf, 0, 0);
-                jenP.appearsParticles(count, param );
+                    param3.vect.x = param2.vect.x;
+                    param3.vect.z = param2.vect.z;
+                    param2.lifeTimeFactor = 0.15;
+                    jenP.appearsParticles(3, param3);
+                    param2.lifeTimeFactor = 0.2;
+                    jenP.appearsParticles(3, param3);
 
-                param.basePos.set(0, 0, posf);
-                jenP.appearsParticles(count, param );
-                
-                param.basePos.set(0, 0, -posf);
-                jenP.appearsParticles(count, param );
+                }
 
-                param.basePos.set(posf, 0, posf);
-                jenP.appearsParticles(count, param );
-
-                param.basePos.set(-posf, 0, -posf);
-                jenP.appearsParticles(count, param );
-
-                delSpan = 0;
             }
+
+            delSpan += clock.getDelta();
+            if(delSpan >= 10.0){delSpan =0;}
 
             jenP.updater();
             jenP.sort(renderer, camera);
