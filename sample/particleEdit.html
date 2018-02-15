@@ -93,7 +93,7 @@
 
         var basePoses = [];
 
-        var particleColors = [new THREE.Vector4(0.63, 0.63, 0.2, 0.5), new THREE.Vector4(0.5, 0.25, 0.05, 0.5), new THREE.Vector4(0.2, 0.05, 0.0, 0.5)];
+        var particleColors = [new THREE.Vector3(1.0,0.97,0.65), new THREE.Vector3(0.5, 0.25, 0.05), new THREE.Vector3(0.2, 0.05, 0.0)];
 
         var colors = {
             color0: [particleColors[0].x * 255, particleColors[0].y * 255, particleColors[0].z * 255],
@@ -115,15 +115,17 @@
             basePos: new THREE.Vector3(),
             addFrameCount: 1,
             scale: 1,
-            scaleRandom: 0.45,
+            scaleRandom: 0.5,
             vect: new THREE.Vector3(0, 1, 0).normalize(),
             speed: 10.0,
             explose: 0.25,
             speedGamma: 1.0,
             lifeTimeFactor: 1.0,
             blur:0.05,
-            colorGamma: 1.6,
-            imageGamma: 0.4
+            colorGamma: 1.0,
+            imageGamma: 0.5,
+            density : 1.0,
+            lightPower : 2.0
         };
 
         init();
@@ -259,6 +261,8 @@
             f2.add(appearsOption, 'blur', 0.000, 1.000).step(0.01);
             f2.add(appearsOption, 'colorGamma', 0.000, 3.000).step(0.01);
             f2.add(appearsOption, 'imageGamma', 0.100, 1.000).step(0.01);
+            f2.add(appearsOption, 'density', 0.100, 2.000).step(0.01);
+            f2.add(appearsOption, 'lightPower', 0.100, 10.000).step(0.1);
             
             f2.add(appearsOption, 'lifeTimeFactor', 0.1, 5).step(0.1);
             
@@ -305,9 +309,9 @@
             let c2 = getColor(colors.color2);
 
             var putCols = [
-                new THREE.Vector4(c0.r, c0.g, c0.b, 0.5),
-                new THREE.Vector4(c1.r, c1.g, c1.b,  0.3),
-                new THREE.Vector4(c2.r, c2.g, c2.b,  0.1)
+                new THREE.Vector3(c0.r, c0.g, c0.b),
+                new THREE.Vector3(c1.r, c1.g, c1.b),
+                new THREE.Vector3(c2.r, c2.g, c2.b)
             ];
 
             jenP.material.uniforms.colors.value = putCols;
@@ -317,24 +321,26 @@
         /////////        
         function loadPreset0() {
             
-            colors.color0 = [255 * 0.63, 255 * 0.63, 255 * 0.2];
-            colors.color1 = [255 * 0.50, 255 * 0.25, 255 * 0.05];
-            colors.color2 = [255 * 0.18, 255 * 0.05, 255 * 0.00];
+            colors.color0 = [255 * 0.98, 255 * 0.63, 255 * 0.3];
+            colors.color1 = [255 * 0.265, 255 * 0.215, 255 * 0.17];
+            colors.color2 = [255 * 0.09, 255 * 0.082, 255 * 0.08];
 
             for (var i = 0; i < gui.__folders.BasicOption.__controllers.length; i++) {
                 gui.__folders.BasicOption.__controllers[i].updateDisplay();
             }
             ////
 
-            appearsOption.addFrameCount = 1;
-            appearsOption.scale = 1;
-            appearsOption.scaleRandom = 0.45;
-            appearsOption.speed = 10;
+            appearsOption.addFrameCount = 2;
+            appearsOption.scale = 0.7;
+            appearsOption.scaleRandom = 0.5;
+            appearsOption.speed = 16;
             appearsOption.explose = 0.25;
-            appearsOption.speedGamma = 1.0;
+            appearsOption.speedGamma = 1.3;
             appearsOption.blur =  0.05;
-            appearsOption.colorGamma =  1.6;
-            appearsOption.imageGamma = 0.4;
+            appearsOption.colorGamma =  1.5;
+            appearsOption.imageGamma = 0.33;
+            appearsOption.density = 0.37,
+            appearsOption.lightPower = 3.2;
 
             for (var i = 0; i < gui.__folders.FrameAppearsOption.__controllers.length; i++) {
                 gui.__folders.FrameAppearsOption.__controllers[i].updateDisplay();
@@ -365,6 +371,7 @@
             appearsOption.colorGamma =  2.0;
             appearsOption.imageGamma = 0.36;
             appearsOption.lifeTimeFactor = 0.8;
+            appearsOption.density = 0.4;
 
             for (var i = 0; i < gui.__folders.FrameAppearsOption.__controllers.length; i++) {
                 gui.__folders.FrameAppearsOption.__controllers[i].updateDisplay();
@@ -437,9 +444,9 @@
         	jenP = new jenParticle(
                 renderer,
                 32, // ← default(1024 particles) can edit Power of two (64,128,256) max 256
-                [   new THREE.Vector4(${colors.color0[0] / 255.0}, ${colors.color0[1] / 255.0},${colors.color0[2] / 255.0}, 0.5), 
-                    new THREE.Vector4(${colors.color1[0] / 255.0}, ${colors.color1[1] / 255.0},${colors.color1[2] / 255.0}, 0.3),
-                    new THREE.Vector4(${colors.color2[0] / 255.0}, ${colors.color2[1] / 255.0},${colors.color2[2] / 255.0}, 0.1)]
+                [   new THREE.Vector3(${colors.color0[0] / 255.0}, ${colors.color0[1] / 255.0},${colors.color0[2] / 255.0}), 
+                    new THREE.Vector3(${colors.color1[0] / 255.0}, ${colors.color1[1] / 255.0},${colors.color1[2] / 255.0}),
+                    new THREE.Vector3(${colors.color2[0] / 255.0}, ${colors.color2[1] / 255.0},${colors.color2[2] / 255.0})]
         	);
             scene.add(jenP);            
 
@@ -458,7 +465,9 @@
                     blur : ${appearsOption.blur},
                     colorGamma : ${appearsOption.colorGamma},
                     imageGamma : ${appearsOption.imageGamma},
-                    lifeTimeFactor : Math.max((Math.random() - 0.5 ) + ${appearsOption.lifeTimeFactor}, 0.1)
+                    lifeTimeFactor : Math.max((Math.random() - 0.5 ) + ${appearsOption.lifeTimeFactor}, 0.1),
+                    density : ${appearsOption.density},
+                    lightPower : ${appearsOption.lightPower}
 				}
             );
             

@@ -110,9 +110,9 @@
             //////////////////////////////////////////////////
             //追加点その３。new宣言をして、sceneにaddする。
             jenP = new ThreeGpuSortedParticle(renderer, 32, 
-                                             [  new THREE.Vector4(1.0, 0.9, 0.5, 0.8), new THREE.Vector4(0.8, 0.2, 0.0, 0.5), new THREE.Vector4(0.2, 0.0, 0.0, 0.4),
-                                                new THREE.Vector4(0.8, 1.0, 1.0, 0.5), new THREE.Vector4(0.0, 0.4, 0.8, 0.5), new THREE.Vector4(0.0, 0.0, 0.4, 0.0),
-                                                new THREE.Vector4(0.75, 0.75, 0.73, 0.3), new THREE.Vector4(0.6, 0.6, 0.7, 0.3), new THREE.Vector4(0.2, 0.2, 0.2, 0.2)
+                                             [  new THREE.Vector3(0.92, 0.635,0.226),new THREE.Vector3(0.5, 0.25,0.05),  new THREE.Vector3(0.167, 0.0625,0.027),
+                                                new THREE.Vector3(0.8, 1.0, 1.0), new THREE.Vector3(0.0, 0.4, 0.8), new THREE.Vector3(0.0, 0.0, 0.4),
+                                                new THREE.Vector3(0.75, 0.75, 0.73), new THREE.Vector3(0.6, 0.6, 0.7), new THREE.Vector3(0.2, 0.2, 0.2)
                                              ]
                                             );
             scene.add(jenP);
@@ -196,7 +196,19 @@
 
                 this.particleParam2 = {
                     basePos:new THREE.Vector3(),
-                    scale: 10, explose: 3.0, colId: 0, speed: 5.0 ,  lifeTimeFactor : 0.75
+                    scale: 5,
+					scaleRandom: 0.45,
+					vect: new THREE.Vector3(0,0,0), // ←Edit your move vector as need,
+					speed:  10.0,
+					explose: 1.0,
+                    speedGamma:  1.05,
+                    blur : 0.12,
+                    colorGamma : 2.05,
+                    imageGamma : 0.38,
+                    colId: 0,
+                    lifeTimeFactor : 0.5,
+                    density : 0.64,
+                    lightPower : 7.3
                 }
             }
 

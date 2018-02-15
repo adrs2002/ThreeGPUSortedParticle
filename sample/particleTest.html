@@ -95,7 +95,7 @@
             renderer = new THREE.WebGLRenderer();
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setClearColor(0x222222);
+            renderer.setClearColor(0xcccccc);
             container.appendChild(renderer.domElement);
 		    if ( renderer.extensions.get( 'ANGLE_instanced_arrays' ) === false ) {
 				// document.getElementById( "notSupported" ).style.display = "";
@@ -140,8 +140,10 @@
                 vect: new THREE.Vector3(0,2.0,0), 
                 explose: 0.5, 
                 colId: 1, 
-                speed: 20, 
-                speedGamma: 0.9
+                speed: 15, 
+                speedGamma: 0.9,
+                blur : 0.05,
+                imageGamma : 0.45
             };
 
             //if(delSpan > 2.0)

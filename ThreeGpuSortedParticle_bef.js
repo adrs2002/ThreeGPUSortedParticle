@@ -54,12 +54,10 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
         this.dataTexture4 = this._createDataTexture();
         this.dataArray4 = this.dataTexture4.image.data;
 
-        this.timeFactorArray = [this.oneLineWidth * this.oneLineHeight];
 
-
-        this.colArray = _colArray ? _colArray :  [new THREE.Vector3(1.0, 0.9, 0.5), new THREE.Vector3(0.8, 0.2, 0.0), new THREE.Vector3(0.2, 0.0, 0.0),
-                                                  new THREE.Vector3(0.8, 1.0, 1.0), new THREE.Vector3(0.0, 0.4, 0.8), new THREE.Vector3(0.0, 0.0, 0.4),
-                                                  new THREE.Vector3(0.75, 0.75, 0.73), new THREE.Vector3(0.6, 0.6, 0.7), new THREE.Vector3(0.9, 0.9, 0.9)
+        this.colArray = _colArray ? _colArray :  [new THREE.Vector4(1.0, 0.9, 0.5, 0.8), new THREE.Vector4(0.8, 0.2, 0.0, 0.5), new THREE.Vector4(0.2, 0.0, 0.0, 0.0),
+                                                  new THREE.Vector4(0.8, 1.0, 1.0, 0.5), new THREE.Vector4(0.0, 0.4, 0.8, 0.5), new THREE.Vector4(0.0, 0.0, 0.4, 0.0),
+                                                  new THREE.Vector4(0.75, 0.75, 0.73, 0.2), new THREE.Vector4(0.6, 0.6, 0.7, 0.1), new THREE.Vector4(0.9, 0.9, 0.9, 0.0)
                                                 ];
         
         const noizeImage = this._createNozieFrom64()
@@ -83,7 +81,7 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
                 dataMap4: { value: this.dataTexture4 },
                 gravity : { type:"v3", value : this.gravity },
                 sortMap: { value: null },
-                colors: { type: "v3v",  value: this.colArray}
+                colors: { type: "v4v",  value: this.colArray}
             },
             vertexShader: this._getParticleDrawVshader(),
             fragmentShader: this._getParticleDrawFshader(this.colArray.length / 3),
@@ -268,8 +266,12 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
 
     /////////////// 
 
-    setLightPower(_id, _power){
-        this.dataArray4[_id * 4 + 0] = _power;
+    setTimeFactor(_id, _life){
+        this.dataArray4[_id * 4 + 0] = _life;
+    }
+
+    getTimeFactor(_id){
+       return this.dataArray4[_id * 4 + 0];
     }
 
     setColorGamma(_id, _f){
@@ -279,25 +281,8 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
     setImageGamma(_id, _f){
         this.dataArray4[_id * 4 + 2] = _f;
     }
-    
-    setDensity(_id, _f){
-        this.dataArray4[_id * 4 + 3] = _f;
-    }
-
 
     ///////////////////
-
-    setTimeFactor(_id, _life){
-        this.timeFactorArray[_id] = _life;
-        // this.dataArray4[_id * 4 + 0] = _life;
-    }
-
-    getTimeFactor(_id){
-       return this.timeFactorArray[_id];
-    }
-
-    ///////////////
-
 
     /** this is Main logic for your Particle ADD.
      * パーティクルの追加メソッド
@@ -353,9 +338,7 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
             lifeTimeFactor = Math.random()* 0.75 + 0.5,
             blur = 0.15,
             colorGamma = 1.0,
-            imageGamma = 0.4,
-            density = 0.5,
-            lightPower = 1.0
+            imageGamma = 0.4
         } = _option;
 
         this.setDulTime(i, 1.0);
@@ -385,10 +368,6 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
         this.setColorGamma(i, colorGamma);
 
         this.setImageGamma(i, imageGamma);
-
-        this.setDensity(i,density);
-
-        this.setLightPower(i,lightPower);
     }
 
     /** 
@@ -403,7 +382,7 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
                 this.addDulTime(i, delta);
                 // オプション挙動サンプル。Blurの値を、時間経過とともに下げる
                 // this.setBlur(i, this.getBlur(i) * Math.min((1.0 - (this.getDulTime(i) - 1.0) ) * 1.5, 0.98) );
-                this.setBlur(i, this.getBlur(i) * 0.99 );
+                this.setBlur(i, this.getBlur(i) * 0.98 );
 
                 if (this.getDulTime(i) >= 2.0) {
                     //1秒経過していたら、消滅させる。
@@ -530,8 +509,6 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
         varying float vTime;
         varying float vColGamma;
         varying float vBaseImageGamma;
-        varying float density;
-        varying float lightPower;
 
         ${this._makeFunc_VPos()}
 
@@ -552,11 +529,11 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
             float timeF = max(0.0, valPos.w - 1.0);
 
             // 算出したＩＤ用ＵＶを、テクスチャのＵＶ変異にも使用
-            vUv2 = uv * (0.5 + valEx1.y * 0.15) + vec2(indexUv.x, indexUv.y);
+            vUv2 = uv * valEx1.y * 0.5 + vec2(indexUv.x, indexUv.y);
 
             vec4 mvPosition = getModelViewPosition(modelViewMatrix,valPos,valVec,valEx1,timeF );
 
-            vec3 vertexPos =  position * (valEx1.y + timeF);    
+            vec3 vertexPos =  position * (valEx1.y +  timeF);    
             vec4 mvVector = vec4(mvPosition.xyz + vertexPos, 1.0);
 
             vec4 noVectPos =  modelViewMatrix * vec4( valPos.xyz , 1.0 );
@@ -583,12 +560,6 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
             vColId = valEx1.x;
             vColGamma = valEx2.y;
             vBaseImageGamma = valEx2.z;
-            density =  valEx2.w;
-
-            vec3 movePow =  vec3(valVec.xyz) * (pow(timeF, 1.0 / valEx1.z) * valVec.w);
-            movePow = valPos.xyz + movePow.xyz;
-
-            lightPower = min(1.0, distance(vec3(valPos.xyz),movePow + vertexPos) / valEx2.x);
         }
 
         `;
@@ -624,7 +595,7 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
         uniform sampler2D map;
         uniform sampler2D dataMap;
         uniform sampler2D dataMap2;
-        uniform vec3 colors[${_colCount * 3}]; 
+        uniform vec4 colors[${_colCount * 3}]; 
 
         varying vec2 vUv;
         varying vec2 vUv2;
@@ -632,10 +603,8 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
         varying float vColId;
         varying float vColGamma;
         varying float vBaseImageGamma;
-        varying float density;
-        varying float lightPower;
 
-        vec3 getIdCol(float _id, int _add){
+        vec4 getIdCol(float _id, int _add){
             ${this._makeColFunction(_colCount)}
             return colors[0];
         }
@@ -647,15 +616,14 @@ class ThreeGpuSortedParticle extends THREE.Object3D {
             
             float uvDist = length(vUv - 0.5) * 2.5;
 
-            // テクスチャの色を補正
-            //float f = abs(texColor.x - 0.5) + 0.5;
-            //f =  abs(f - vBaseImageGamma) / vBaseImageGamma * (1.0 / vBaseImageGamma);
-
-            float f = texColor.x + (1.0 /vBaseImageGamma) * (texColor.x - vBaseImageGamma);
-
+            float f = abs(texColor.x - 0.5) + 0.5;
+            
+            // テクスチャの色をガンマ補正
+            f = abs(f - vBaseImageGamma) / vBaseImageGamma * (1.0 / vBaseImageGamma);
+             
             texColor = vec4(f);
             
-            gl_FragColor = texColor * vec4(vec3(mix(mix( getIdCol(vColId, 0 ), getIdCol(vColId, 1 ), lightPower) , getIdCol(vColId, 2 ),  pow(vTime, 1.0 / vColGamma))),density);    
+            gl_FragColor = texColor * mix(mix( getIdCol(vColId, 0 ), getIdCol(vColId, 1 ), uvDist) , getIdCol(vColId, 2 ),  pow(vTime, 1.0 / vColGamma));    
         
             // 明るいところの透明度を上げる
             gl_FragColor.a = max(length(gl_FragColor.rgb) * gl_FragColor.a, gl_FragColor.a);
